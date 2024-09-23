@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.GroupMemberInfoMapper">
+
+    <select id="countMemberOfGroup" resultType="java.lang.Integer">
+        select count(*)
+        from lhim_group_member_info
+        where flag = 1
+          and group_info_no = #{groupNo};
+    </select>
+
+    <update id="batchUpdate">
+        <if test="list != null and list.size > 0">
+            <foreach collection="list" item="member">
+                update lhim_group_member_info
+                set user_type = #{member.userType},
+                    alias_name= #{member.aliasName},
+                    alias_name_pinyin=#{member.aliasNamePinyin}
+                where group_member_info_id = #{member.groupMemberInfoId};
+            </foreach>
+        </if>
+    </update>
+
+    <select id="countMemberOfGroups" resultType="com.lh.im.platform.entity.GroupMemberInfo">
+        select count(*) as user_seq, group_info_no as group_info_no
+        from lhim_group_member_info
+        where flag = 1
+        <if test="set !=null and set.size > 0">
+        and group_info_no in
+            <foreach collection="set" item="groupNo" open="(" close=")" separator=",">
+                #{groupNo}
+            </foreach>
+        </if>
+        group by group_info_no
+    </select>
+
+    <select id="getMemberAccountsInPerGroupWhichHasAccount" resultType="com.lh.im.platform.entity.GroupMemberInfo">
+        SELECT
+            group_info_no, user_account
+        from lhim_group_member_info
+        where flag = 1 and group_info_no in
+                           (SELECT group_info_no
+                            from lhim_group_member_info
+                            where flag = 1 and user_account = #{currentAccount}
+                           );
+    </select>
+
+    <select id="getSmallGroupNosOfMember" resultType="com.lh.im.platform.entity.GroupMemberInfo">
+        SELECT count(*) as countNum,
+               group_info_no
+        from lhim_group_member_info
+        where flag = 1
+          and group_info_no in
+              (SELECT group_info_no
+               from lhim_group_member_info
+               where flag = 1
+                 and user_account = #{currentAccount}
+               )
+        group by group_info_no
+        HAVING countNum &lt;= 15;
+    </select>
+
+</mapper>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.PrivateChatMessageMapper">
+
+    <insert id="batchInsert">
+        <if test="items.get(0) != null">
+            insert into private_chat_message (
+            private_chat_message_id,
+            chat_unique_key,
+            msg_key,
+            msg_time,
+            from_account,
+            to_account,
+            msg_type,
+            msg_content,
+            msg_body,
+            msg_status,
+            msg_seq,
+            first_del_flag,
+            second_del_flag,
+            recall_status,
+            quote_msg_id,
+            quote_msg_body,
+            flag,
+            create_time,
+            creator,
+            update_time,
+            updater
+            )
+            values
+            <foreach collection="items" index="index" item="item" separator=",">
+                (
+                #{item.privateChatMessageId},
+                #{item.chatUniqueKey},
+                #{item.msgKey},
+                #{item.msgTime},
+                #{item.fromAccount},
+                #{item.toAccount},
+                #{item.msgType},
+                #{item.msgContent},
+                #{item.msgBody},
+                #{item.msgStatus},
+                #{item.msgSeq},
+                #{item.firstDelFlag},
+                #{item.secondDelFlag},
+                #{item.recallStatus},
+                #{item.quoteMsgId},
+                #{item.quoteMsgBody},
+                #{item.flag},
+                #{item.createTime},
+                #{item.creator},
+                #{item.updateTime},
+                #{item.updater}
+                )
+            </foreach>
+        </if>
+    </insert>
+
+    <select id="findLatestMsgPerUniqueKey" resultType="com.lh.im.platform.entity.PrivateChatMessage">
+        SELECT
+            gcl.*
+        FROM
+            lhim_private_chat_message AS gcl
+                LEFT JOIN
+            (
+                SELECT MAX( temp_in.seq ) AS seq, chat_unique_key
+                from
+                (
+                    SELECT MAX( msg_seq ) AS seq, chat_unique_key
+                    FROM lhim_private_chat_message
+                    WHERE flag = 1
+                      AND from_account = #{currentAccount}
+                        <if test="set != null and set.size > 0">
+                          AND chat_unique_key in
+                          <foreach collection="set" item="key" open="(" separator="," close=")">
+                              #{key}
+                          </foreach>
+                        </if>
+                        <if test="excludeSet != null and excludeSet.size > 0">
+                            AND chat_unique_key not in
+                            <foreach collection="excludeSet" item="key" open="(" separator="," close=")">
+                                #{key}
+                            </foreach>
+                        </if>
+                    GROUP BY chat_unique_key
+                    union (
+                            SELECT MAX( msg_seq ) AS seq, chat_unique_key
+                            FROM lhim_private_chat_message
+                            WHERE flag = 1
+                            AND to_account = #{currentAccount}
+                            <if test="set != null and set.size > 0">
+                                AND chat_unique_key in
+                                <foreach collection="set" item="key" open="(" separator="," close=")">
+                                    #{key}
+                                </foreach>
+                            </if>
+                            <if test="excludeSet != null and excludeSet.size > 0">
+                                AND chat_unique_key not in
+                                <foreach collection="excludeSet" item="key" open="(" separator="," close=")">
+                                    #{key}
+                                </foreach>
+                            </if>
+                            GROUP BY chat_unique_key
+                        )
+                ) as temp_in
+                GROUP BY chat_unique_key
+            ) AS temp
+                ON gcl.chat_unique_key = temp.chat_unique_key
+        WHERE
+            gcl.flag = 1
+          AND gcl.msg_seq >= temp.seq;
+    </select>
+
+    <select id="findUnreadCountPerSession" resultType="com.lh.im.platform.entity.PrivateChatMessage">
+        SELECT count(*) AS msg_time,
+               temp.chat_unique_key
+        FROM lhim_private_chat_message as a
+            left join (
+                    SELECT max(msg_seq) as msg_seq, chat_unique_key
+                            from lhim_private_chat_message
+                            WHERE flag = 1
+                              and to_account = #{userAccount}
+                              and msg_status = 1
+                            GROUP BY chat_unique_key
+                            )
+            as temp on a.chat_unique_key = temp.chat_unique_key
+        WHERE 1 = 1
+          AND flag = 1
+          AND a.msg_status = 0
+          and a.msg_seq > IFNULL(temp.msg_seq, 0)
+          and to_account = #{userAccount}
+        GROUP BY chat_unique_key;
+    </select>
+
+    <select id="getCalendarOfGroupByTime" resultType="java.lang.String">
+        select
+        DATE_FORMAT(create_time, '%Y-%m-%d') as dayOfYear
+        from
+        lhim_private_chat_message
+        where flag = 1
+        and chat_unique_key = #{sessionKey}
+        and msg_time &gt;= #{startOfYear}
+        and msg_time &lt;= #{endOfYear}
+        <if test="res &lt;= 0">
+            and first_del_flag = 0
+        </if>
+        <if test="res &gt; 0">
+            and second_del_flag = 0
+        </if>
+        <if test="lastUpdateTimeStamp != null">
+            and msg_time >= #{lastUpdateTimeStamp}
+        </if>
+        group by dayOfYear;
+    </select>
+
+</mapper>

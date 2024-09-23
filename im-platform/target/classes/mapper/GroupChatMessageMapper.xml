@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.GroupChatMessageMapper">
+    <sql id="groupMessageColumns">
+        m.group_chat_message_id `groupChatMessageId`
+        ,m.group_no `groupNo`
+        ,m.group_id `groupId`
+        ,m.msg_seq `msgSeq`
+        ,m.msg_time `msgTime`
+        ,m.from_account `fromAccount`
+        ,m.msg_type `msgType`
+        ,m.msg_content `msgContent`
+        ,m.msg_body `msgBody`
+        ,m.msg_status `msgStatus`
+        ,m.at_user_accounts `atUserAccount`
+        ,m.at_all `atAll`
+        ,m.flag `flag`
+        ,m.create_time `createTime`
+        ,m.creator `creator`
+        ,m.update_time `updateTime`
+        ,m.updater `updater`
+        ,m.read_user `readUser`
+    </sql>
+    <select id="loadMessageByGroupId" resultType="com.lh.im.platform.entity.GroupChatMessage">
+        SELECT
+        <include refid="groupMessageColumns"/>
+        FROM lhim_group_chat_message m
+        WHERE NOT EXISTS (
+        SELECT 1 FROM lhim_group_message_delete_record d
+        WHERE m.group_chat_message_id = d.group_message_id AND d.option_type = 0
+        )
+        AND m.msg_time &gt; (
+        SELECT ifnull(max(clear_time),0) FROM lhim_group_message_delete_record d
+        WHERE d.user_account = #{userAccount} AND d.option_type = 1
+        )
+        AND m.group_id = #{id}
+        <if test="minId > 0">
+            AND m.group_chat_message_id &gt; #{minId}
+        </if>
+        <if test="minDate > 0">
+            AND m.msg_time &gt; #{minDate}
+        </if>
+        <if test="msgStatus != null">
+            AND m.msg_status = #{msgStatus}
+        </if>
+        AND m.from_account = #{userAccount}
+        limit #{count}
+        order by m.group_chat_message_id desc
+    </select>
+
+    <select id="loadLastGroupMessage" resultType="com.lh.im.platform.entity.GroupChatMessage">
+        SELECT
+        <include refid="groupMessageColumns"/>
+        FROM lhim_group_chat_message m
+        WHERE NOT EXISTS (
+        SELECT 1 FROM lhim_group_message_delete_record d
+        WHERE m.group_chat_message_id = d.group_message_id AND d.option_type = 0
+        )
+        AND m.msg_time &gt; (
+        SELECT ifnull(max(clear_time),0) FROM lhim_group_message_delete_record d
+        WHERE d.user_account = #{userAccount} AND d.option_type = 1
+        )
+        AND m.group_id = #{groupId}
+        <!--        <if test="msgStatus != null">-->
+        AND m.msg_status = 1
+        <!--        </if>-->
+        AND m.from_account = #{userAccount}
+        order by m.group_chat_message_id desc
+        limit #{count}
+    </select>
+
+    <select id="loadMsgByMsgId" resultType="com.lh.im.platform.entity.GroupChatMessage">
+        SELECT
+        <include refid="groupMessageColumns"/>
+        FROM lhim_group_chat_message m
+        WHERE NOT EXISTS (
+        SELECT 1 FROM lhim_group_message_delete_record d
+        WHERE m.group_chat_message_id = d.group_message_id AND d.option_type = 0
+        )
+        AND m.msg_time &gt; (
+        SELECT ifnull(max(clear_time),0) FROM lhim_group_message_delete_record d
+        WHERE d.user_account = #{userAccount} AND d.option_type = 1
+        )
+        AND m.group_id = #{groupId}
+        <if test="loadType == 0">
+            AND (m.group_chat_message_id &lt; #{msgId} or m.group_chat_message_id = #{msgId} )
+        </if>
+        <if test="loadType == 1">
+            AND (m.group_chat_message_id &gt; #{msgId} or m.group_chat_message_id = #{msgId})
+        </if>
+        AND m.from_account = #{userAccount}
+        order by m.group_chat_message_id desc
+        limit 20
+    </select>
+
+    <select id="findLatestMsgPerGroup" resultType="com.lh.im.platform.entity.GroupChatMessage">
+        SELECT
+        gcl.*
+        FROM
+        lhim_group_chat_message AS gcl
+        LEFT JOIN
+            (
+                SELECT MAX( msg_seq ) AS seq, group_no
+                FROM lhim_group_chat_message
+                WHERE flag = 1 AND msg_key IS NOT NULL
+                <if test="set != null and set.size > 0">
+                    AND group_no in
+                    <foreach collection="set" item="key" open="(" separator="," close=")">
+                        #{key}
+                    </foreach>
+                </if>
+                <if test="excludeNoSet != null and excludeNoSet.size > 0">
+                    AND group_no not in
+                    <foreach collection="excludeNoSet" item="key" open="(" separator="," close=")">
+                        #{key}
+                    </foreach>
+                </if>
+                GROUP BY group_no
+            ) AS temp
+        ON gcl.group_no = temp.group_no
+        WHERE
+        gcl.flag = 1
+        AND gcl.msg_seq >= temp.seq;
+    </select>
+
+    <select id="findUnreadCountPerGroup" resultType="com.lh.im.platform.entity.GroupChatMessage">
+        select count(*) as msg_time, group_no
+        from lhim_group_chat_message
+        where 1 = 1
+        and flag = 1
+        and msg_status = 1
+        and from_account != #{userAccount}
+        and group_no in
+        <foreach collection="groupNoSet" item="groupNo" separator="," open="(" close=")">
+            #{groupNo}
+        </foreach>
+        group by group_no;
+    </select>
+
+    <select id="getCalendarOfGroupByTime" resultType="java.lang.String">
+        select
+        DATE_FORMAT(create_time, '%Y-%m-%d') as dayOfYear
+        from
+        lhim_group_chat_message
+        where flag = 1
+        and group_no = #{groupNo}
+        and msg_time &gt;= #{time}
+        and msg_time &gt;= #{startOfYear}
+        and msg_time &lt;= #{endOfYear}
+        <if test="deleteMsgIds != null and deleteMsgIds.size > 0">
+            and group_chat_message_id not in (
+                <foreach collection="deleteMsgIds" item="msgId" separator=",">
+                    #{msgId}
+                </foreach>
+            )
+        </if>
+        group by dayOfYear;
+    </select>
+
+</mapper>

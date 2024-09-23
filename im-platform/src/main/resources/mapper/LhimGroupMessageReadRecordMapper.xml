@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.GroupMessageReadRecordMapper">
+    <insert id="batchInsert">
+        <if test="items.get(0) != null">
+            insert into lhim_group_message_read_record (
+            group_message_read_record_id,
+            send_account,
+            recv_account,group_no,
+            group_chat_message_id,
+            msg_seq,
+            read_status,
+            read_time,
+            has_been_at,
+            flag,
+            create_time,creator,
+            update_time,
+            updater
+            )
+            values
+            <foreach collection="items" index="index" item="item" separator=",">
+                (
+                #{item.groupMessageReadRecordId},
+                #{item.sendAccount},
+                #{item.recvAccount},
+                #{item.groupNo},
+                #{item.groupChatMessageId},
+                #{item.msgSeq},
+                #{item.readStatus},
+                #{item.readTime},
+                #{item.hasBeenAt},
+                #{item.flag},
+                #{item.createTime},
+                #{item.creator},
+                #{item.updateTime},
+                #{item.updater}
+                )
+            </foreach>
+        </if>
+    </insert>
+    <update id="batchUpdateReadStatus">
+        <if test="items.get(0) != null">
+            <foreach collection="items" item="item">
+                update lhim_group_message_read_record
+                set read_status = #{item.readStatus},
+                read_time = #{item.readTime},
+                update_time = #{item.updateTime}
+                where group_message_read_record_id = #{item.groupMessageReadRecordId};
+            </foreach>
+        </if>
+    </update>
+
+    <select id="countHasReadNumByMsgIds" resultType="com.lh.im.platform.entity.GroupMessageReadRecord">
+        select count(*) as group_message_read_record_id, group_chat_message_id
+        from lhim_group_message_read_record
+        where flag = 1
+          and read_status = 1
+          and group_chat_message_id in
+            <foreach collection="items" item="item" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        group by group_chat_message_id;
+    </select>
+
+    <select id="findUnreadCountAndAtInfoPerGroupOfUser" resultType="com.lh.im.platform.entity.GroupMessageReadRecord">
+        select a.group_no as group_no, count(*) as msg_seq, MAX(a.has_been_at) as has_been_at
+        from lhim_group_message_read_record as a
+                 left join (select group_no, max(msg_seq) as msg_seq
+                            from lhim_group_message_read_record
+                            where flag = 1
+                              and send_account = #{userAccount}
+                              and read_status = 1
+                            GROUP BY group_no) as temp
+                           on a.group_no = temp.group_no
+        where flag = 1
+          and a.read_status = 0
+          and a.send_account = #{userAccount}
+          and a.msg_seq > IFNULL(temp.msg_seq,0)
+        group by group_no;
+    </select>
+
+    <select id="getBeenAtMaxMsgSeqOfPerGroup" resultType="com.lh.im.platform.entity.GroupMessageReadRecord">
+        select a.group_no as group_no, MAX(a.msg_seq) as msg_seq
+        from lhim_group_message_read_record as a
+                 left join (select group_no, max(msg_seq) as msg_seq
+                            from lhim_group_message_read_record
+                            where flag = 1
+                              and send_account = #{account}
+                              and read_status = 1
+                            <if test="noSet != null and noSet.size > 0">
+                                and group_no in (
+                                <foreach collection="noSet" item="no" separator=",">
+                                    #{no}
+                                </foreach>
+                                    )
+                            </if>
+                            GROUP BY group_no) as temp
+                           on a.group_no = temp.group_no
+        where flag = 1
+          and a.read_status = 0
+          and a.send_account = #{account}
+          and a.msg_seq > IFNULL(temp.msg_seq,0)
+          and a.has_been_at = 1
+        group by group_no;
+    </select>
+</mapper>

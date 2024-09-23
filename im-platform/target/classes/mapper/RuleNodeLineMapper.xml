@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.RuleNodeLineMapper">
+
+    <insert id="batchInsert">
+        <if test="items.get(0) != null">
+            insert into lhim_rule_node_line (
+            rule_node_line_id,
+            rule_tree_id,
+            node_id_from,
+            node_id_to,
+            line_rule_type,
+            line_rule_value,
+            flag
+            )
+            values
+            <foreach collection="items" index="index" item="item" separator=",">
+                (
+                #{item.ruleNodeLineId},
+                #{item.ruleTreeId},
+                #{item.nodeIdFrom},
+                #{item.nodeIdTo},
+                #{item.lineRuleType},
+                #{item.lineRuleValue},
+                #{item.flag}
+                )
+            </foreach>
+        </if>
+    </insert>
+</mapper>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.OrgMapper">
+
+    <insert id="batchInsert">
+        <if test="items.get(0) != null">
+            insert into sys_org (
+             id,oa_org_id,parent_id,name,
+             code,location,type,logo_file_id,
+             description,source,order_number,created_time,
+             created_by,modified_time,modified_by,flag
+            )
+            values
+            <foreach collection="items" index="index" item="item" separator=",">
+                (
+                    #{item.id,jdbcType=INTEGER},#{item.oaOrgId,jdbcType=INTEGER},
+                    #{item.parentId,jdbcType=INTEGER},#{item.name,jdbcType=VARCHAR},
+                    #{item.code,jdbcType=VARCHAR},#{item.location,jdbcType=VARCHAR},
+                    #{item.type,jdbcType=VARCHAR},#{item.logoFileId,jdbcType=INTEGER},
+                    #{item.description,jdbcType=VARCHAR},#{item.source,jdbcType=VARCHAR},
+                    #{item.orderNumber,jdbcType=INTEGER},#{item.createdTime,jdbcType=INTEGER},
+                    #{item.createdBy,jdbcType=INTEGER},#{item.modifiedTime,jdbcType=INTEGER},
+                    #{item.modifiedBy,jdbcType=INTEGER},#{item.flag,jdbcType=INTEGER}
+                )
+            </foreach>
+        </if>
+    </insert>
+</mapper>

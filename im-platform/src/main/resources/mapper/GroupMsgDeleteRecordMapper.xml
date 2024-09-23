@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.GroupMsgDeleteRecordMapper">
+
+    <select id="hasDeleteByUser" resultType="java.lang.Integer">
+        select count(*)
+        from lhim_group_message_delete_record
+        where flag = 1
+        and user_account = #{userAccount}
+        and group_info_no = #{groupNo}
+        and (
+                (group_message_id = #{groupChatMessageId} and option_type = 0)
+                or (option_type = 1 and clear_time >= #{msgTime})
+            );
+    </select>
+    <select id="getLastClearTime" resultType="java.lang.Long">
+        SELECT MAX(clear_time)
+        from lhim_group_message_delete_record
+        where flag = 1
+          and group_info_no = #{groupNo}
+          and user_account = #{account}
+          and option_type = 1;
+    </select>
+</mapper>

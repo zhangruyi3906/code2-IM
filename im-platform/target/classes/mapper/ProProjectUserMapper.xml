@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lh.im.platform.mapper.ProProjectUserMapper">
+
+    <insert id="batchInsert">
+        <if test="items.get(0) != null">
+            insert into pro_project_user (
+            id,
+            project_id,
+            org_user_id,
+            default_state,
+            convert_state,
+            order_number,
+            created_time,
+            created_by,
+            modified_time,
+            modified_by,
+            flag
+            )
+            values
+            <foreach collection="items" index="index" item="item" separator=",">
+                (
+                #{item.id,jdbcType=INTEGER},
+                #{item.projectId,jdbcType=INTEGER},
+                #{item.orgUserId,jdbcType=INTEGER},
+                #{item.defaultState,jdbcType=VARCHAR},
+                #{item.convertState,jdbcType=VARCHAR},
+                #{item.orderNumber,jdbcType=INTEGER},
+                #{item.createdTime,jdbcType=INTEGER},
+                #{item.createdBy,jdbcType=INTEGER},
+                #{item.modifiedTime,jdbcType=INTEGER},
+                #{item.modifiedBy,jdbcType=INTEGER},
+                #{item.flag,jdbcType=INTEGER}
+                )
+            </foreach>
+        </if>
+    </insert>
+</mapper>
